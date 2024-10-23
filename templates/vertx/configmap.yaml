@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vertx-server-config
+data:
+  application.conf: |
+    # Application configuration
+    http.port = 8888
+    some.other.setting = "value"
+
+  graphql.conf: |
+    # GraphQL configuration
+    graphiql.enabled = true
