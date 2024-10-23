@@ -139,9 +139,9 @@ In your `package.json`, specify the default image under the `values` object:
 
 ```json
 {
-"values": {
-"flink-upstream-image": "datasqrl/flink-1.19-v0.5"
-}
+    "values": {
+      "flink-upstream-image": "datasqrl/flink-1.19-v0.5"
+    }
 }
 ```
 
@@ -162,15 +162,15 @@ If you need to include bespoke connectors or UDFs directly in the image, you can
 
 3. **Specify the Custom Image in `package.json`:**
 
-   Update your `package.json` under the `values` object:
-
-   ```json
-   {
-   "values": {
-   "flink-upstream-image": "your-repo/your-flink-image:latest"
-   }
-   }
-   ```
+    Update your `package.json` under the `values` object:
+    
+    ```json
+    {
+     "values": {
+       "flink-upstream-image": "your-repo/your-flink-image:latest"
+     }
+    }
+    ```
 
 4. **Set UDF_PATH Argument (Optional):**
 
