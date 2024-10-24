@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vertx-server
+  labels:
+    app: vertx-server
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: vertx-server
+  template:
+    metadata:
+      labels:
+        app: vertx-server
+    spec:
+      containers:
+        - name: vertx-server
+          image: {{ .Values.vertxServer.image }}
+          ports:
+            - containerPort: {{ .Values.vertxServer.servicePort }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+      volumes:
+        - name: config
+          configMap:
+            name: vertx-server-config

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-schema
+data:
+  init.sql: |
+    -- PostgreSQL schema initialization script
+    CREATE TABLE example (
+      id SERIAL PRIMARY KEY,
+      data TEXT NOT NULL
+    );
