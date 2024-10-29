@@ -1,0 +1,117 @@
+###
+# Quickstart:
+# kubectl create -f https://github.com/jetstack/cert-manager/releases/download/v1.8.2/cert-manager.yaml
+# helm repo add flink-operator-repo https://downloads.apache.org/flink/flink-kubernetes-operator-1.10.0/
+# helm install flink-kubernetes-operator flink-operator-repo/flink-kubernetes-operator
+################################################################################
+#  Licensed to the Apache Software Foundation (ASF) under one
+#  or more contributor license agreements.  See the NOTICE file
+#  distributed with this work for additional information
+#  regarding copyright ownership.  The ASF licenses this file
+#  to you under the Apache License, Version 2.0 (the
+#  "License"); you may not use this file except in compliance
+#  with the License.  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+# limitations under the License.
+################################################################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sql-scripts-configmap
+data:
+  flink.sql: |
+    CREATE TABLE GeneratedSource (
+      id INT,
+      name STRING
+    ) WITH (
+      'connector' = 'datagen',
+      'rows-per-second' = '10',
+      'fields.id.kind' = 'sequence',
+      'fields.id.start' = '1',
+      'fields.id.end' = '1000',
+      'fields.name.length' = '10'
+    );
+    
+    CREATE TABLE PrintSink (
+    id INT,
+    name STRING
+    ) WITH (
+      'connector' = 'print'
+    );
+    
+    INSERT INTO PrintSink
+    SELECT id, name FROM GeneratedSource;
+
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: sql-example
+spec:
+  image: flink:1.19.0
+  flinkVersion: v1_19
+  jobManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+    podTemplate:
+      spec:
+        containers:
+          - name: flink-main-container
+            volumeMounts:
+              - name: sql-scripts
+                mountPath: /opt/flink/usrlib/sql-scripts
+        volumes:
+          - name: sql-scripts
+            configMap:
+              name: sql-scripts-configmap
+  taskManager:
+    resource:
+      memory: "2048m"
+      cpu: 1
+    podTemplate:
+      spec:
+        containers:
+          - name: flink-main-container
+            volumeMounts:
+              - name: sql-scripts
+                mountPath: /opt/flink/usrlib/sql-scripts
+        volumes:
+          - name: sql-scripts
+            configMap:
+              name: sql-scripts-configmap
+  serviceAccount: flink
+---
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkSessionJob
+metadata:
+  name: sql-example
+spec:
+  deploymentName: sql-example
+  job:
+    jarURI: https://sqrl-k8s-cloud.s3.amazonaws.com/flink-sql-runner-example-1.jar
+    args: ["/opt/flink/usrlib/sql-scripts/flink.sql"]
+    parallelism: 1
+    upgradeMode: stateless
+
+
+---
+# Optional to add a lb
+apiVersion: v1
+kind: Service
+metadata:
+  name: flink-jobmanager-ui
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 8081
+      targetPort: 8081
+      protocol: TCP
+  selector:
+    app: sql-example
