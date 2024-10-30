@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flink
+  labels:
+    app: flink
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+  template:
+    metadata:
+      labels:
+        app: flink
+    spec:
+      containers:
+        - name: jobmanager
+          image: {{ .Values.flink.image }}
+          args: ["jobmanager"]
+          ports:
+            - containerPort: {{ .Values.flink.servicePort }}
+          volumeMounts:
+            - name: sql-config
+              mountPath: /opt/flink/sql
+      volumes:
+        - name: sql-config
+          configMap:
+            name: flink-sql

@@ -1,0 +1,84 @@
+##
+# kubectl apply -f https://github.com/cloudnative-pg/cloudnative-pg/releases/download/v1.24.1/cnpg-1.24.1.yaml --server-side
+# Note: The --server-side to bypass The CustomResourceDefinition "poolers.postgresql.cnpg.io" is invalid: metadata.annotations: Too long: must have at most 262144 bytes
+##
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: post-init-sql-configmap
+data:
+  schema.sql: |
+    CREATE TABLE GeneratedSource (
+      id INT,
+      name varchar
+    );
+---
+
+apiVersion: v1
+data:
+  username: datasqrl
+  password: postgres
+kind: Secret
+metadata:
+  name: db-secret
+type: kubernetes.io/basic-auth
+
+---
+
+# install pgvector plugin using postInitTemplateSQL
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: database
+  labels:
+    app: database
+    component: db
+spec:
+  instances: 1
+  primaryUpdateStrategy: unsupervised
+
+  # superuserSecret:
+  #   name: superuser-secret
+
+  # TODO: solve -h localhost not working problem
+  # https://stackoverflow.com/questions/4328679/how-to-configure-postgresql-so-it-accepts-loginpassword-auth
+  postgresql:
+    parameters:
+      shared_buffers: 256MB
+      pg_stat_statements.max: '10000'
+      pg_stat_statements.track: all
+      auto_explain.log_min_duration: '10s'
+
+    pg_hba:
+      - local all all trust
+      - host all all all trust
+
+    # TODO: fix bug any password can login
+  bootstrap:
+    initdb:
+      database: datasqrl
+      owner: datasqrl
+      secret:
+        name: db-secret
+      postInitApplicationSQLRefs:
+        configMapRefs:
+          - name: post-init-sql-configmap
+            key: schema.sql
+  storage:
+    size: 1Gi
+
+---
+# Optional to add a lb
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-port
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    cnpg.io/cluster: database
+    cnpg.io/podRole: instance
