@@ -1,0 +1,59 @@
+group_label: datasqrl-pipeline
+environment: dev
+
+
+metadata:
+  labels:
+    monitoring:
+      enabled: "true"
+
+engine:
+  flink:
+    version: "v1_19"
+    storage:
+      checkpoint_dir_root: "s3://staging-sqrl-cloud-flink-backup"
+      savepoint_dir_root: "s3://staging-sqrl-cloud-flink-backup"
+    jobManager:
+      resource:
+        memory: "2g"
+        cpu: 0.5
+    taskManager:
+      resource:
+        memory: "4g"
+        cpu: 2
+    logging:
+      format: json
+      level: info
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "1"
+      metrics.reporters: prom
+      metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+      metrics.reporter.prom.port: "9249"
+      metrics.reporter.prom.interval: 1 MINUTE
+      # use irsa role to s3 bucket
+      fs.s3a.aws.credentials.provider: com.amazonaws.auth.WebIdentityTokenCredentialsProvider
+      # s3 checkpoint and savepoint
+      fs.allowed-fallback-filesystem: s3
+      state.backend: filesystem
+      state.backend.type: hashmap
+      state.backend.incremental: true
+      execution.checkpointing.create-subdir: true  # default
+      execution.checkpointing.interval: 900000   # 15 mins
+      execution.checkpointing.max-concurrent-checkpoints: 1  # default
+      execution.checkpointing.mode: "EXACTLY_ONCE"  # default
+      # ha
+      high-availability.type: kubernetes
+
+  database:
+    logging:
+      level: info
+  server:
+    metrics:
+      port: 8888
+      path: "metrics"
+
+monitoring:
+  scrape_interval: 60s
+
+# https://cloudnative-pg.io/documentation/1.23/logging/
+# The operator is designed to log in JSON format directly to standard output, including PostgreSQL logs

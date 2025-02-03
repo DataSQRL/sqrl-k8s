@@ -1,0 +1,51 @@
+name: PR Workflow
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]  # Trigger on new PRs, when PRs are updated, or reopened
+
+env:
+  RELEASE_NAME: dev-${{ github.head_ref }}
+
+jobs:
+  dev-release:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.1"
+        id: install
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::286928876767:role/github-workflow-oidc-role-dev
+          aws-region: us-east-1
+
+      - name: Replace underscores with dashes in RELEASE_NAME
+        run: echo "RELEASE_NAME=$(echo ${{ env.RELEASE_NAME }} | sed 's/_/-/g')" >> $GITHUB_ENV
+
+      - name: Login ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | helm registry login --username AWS --password-stdin 286928876767.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Package and publish namespace-dependencies
+        working-directory: ./charts/namespace-dependencies
+        run: |
+          echo "publish namespace-dependencies at ${{ env.RELEASE_NAME }}"
+          helm package . --version 0.0.0-${{ env.RELEASE_NAME }}
+          helm push namespace-dependencies-0.0.0-${{ env.RELEASE_NAME }}.tgz oci://286928876767.dkr.ecr.us-east-1.amazonaws.com
+      
+      - name: Package and publish sqrlpipeline
+        working-directory: ./charts/sqrlpipeline
+        run: |
+          echo "publish sqrlpipeline at ${{ env.RELEASE_NAME }}"
+          helm package . --version 0.0.0-${{ env.RELEASE_NAME }}
+          helm push sqrlpipeline-0.0.0-${{ env.RELEASE_NAME }}.tgz oci://286928876767.dkr.ecr.us-east-1.amazonaws.com

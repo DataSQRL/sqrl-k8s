@@ -1,0 +1,85 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: podmonitor-flink-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    prometheus: "true"
+spec:
+  selector:
+    matchLabels:
+      service: flink
+      monitoring_enabled: "true"
+      short_id: {{ include "sqrlpipeline.short_id" . }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+    - port: "prom"
+      interval: {{ .Values.monitoring.scrape_interval }}
+      relabelings:
+        - targetLabel: deploymentId
+          replacement: {{ include "sqrlpipeline.deployment_id" . }}
+          action: replace
+        - targetLabel: service
+          replacement: "flink"
+          action: replace
+
+
+---
+
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: podmonitor-postgres-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    prometheus: "true"
+spec:
+  selector:
+    matchLabels:
+      service: postgres
+      monitoring_enabled: "true"
+      short_id: {{ include "sqrlpipeline.short_id" . }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+    - port: metrics
+      interval: {{ .Values.monitoring.scrape_interval }}
+      relabelings:
+        - targetLabel: deploymentId
+          replacement: {{ include "sqrlpipeline.deployment_id" . }}
+          action: replace
+        - targetLabel: service
+          replacement: "postgres"
+          action: replace
+
+---
+
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: podmonitor-vertx-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    prometheus: "true"
+spec:
+  selector:
+    matchLabels:
+      service: vertx
+      monitoring_enabled: "true"
+      short_id: {{ include "sqrlpipeline.short_id" . }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+    - port: metrics
+      path: {{ .Values.engine.server.metrics.path }}
+      interval: {{ .Values.monitoring.scrape_interval }}
+      relabelings:
+        - targetLabel: deploymentId
+          replacement: {{ include "sqrlpipeline.deployment_id" . }}
+          action: replace
+        - targetLabel: service
+          replacement: "vertx"
+          action: replace

@@ -1,0 +1,61 @@
+name: Release Workflow
+
+on:
+  release:
+<<<<<<< HEAD
+    types: [published]
+
+env:
+  RELEASE_TAG: ${{ github.event.release.tag_name }}
+
+jobs:
+  prod-release:
+=======
+    types:
+      - published
+
+env:
+  RELEASE_TAG: ${{github.event.release.tag_name#v}}
+
+jobs:
+  dev-release:
+>>>>>>> 78c85f8 (add prod-release pipeline)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.1"
+        id: install
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::286928876767:role/github-workflow-oidc-role-dev
+          aws-region: us-east-1
+
+      - name: Login ECR
+        run: |
+          aws ecr get-login-password --region us-east-1 | helm registry login --username AWS --password-stdin 286928876767.dkr.ecr.us-east-1.amazonaws.com
+
+      - name: Package and publish namespace-dependencies
+        working-directory: ./charts/namespace-dependencies
+        run: |
+          VERSION=${RELEASE_TAG#v}
+          echo "publish namespace-dependencies at ${VERSION}"
+          helm package . --version ${VERSION}
+          helm push namespace-dependencies-${VERSION}.tgz oci://286928876767.dkr.ecr.us-east-1.amazonaws.com
+      
+      - name: Package and publish sqrlpipeline
+        working-directory: ./charts/sqrlpipeline
+        run: |
+          VERSION=${RELEASE_TAG#v}
+          echo "publish sqrlpipeline at ${VERSION}"
+          helm package . --version ${VERSION}
+          helm push sqrlpipeline-${VERSION}.tgz oci://286928876767.dkr.ecr.us-east-1.amazonaws.com
