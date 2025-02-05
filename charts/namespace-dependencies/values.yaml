@@ -1,2 +1,1 @@
-flink:
-  serviceAccountRoleArn: "arn:aws:iam::286928876767:role/eksctl-datasqrl-cloud-nodegroup-my-NodeInstanceRole-dNZzJBfWsGTC"
+

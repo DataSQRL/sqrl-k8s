@@ -1,0 +1,48 @@
+namespace: sqrl
+deployment:
+  deploymentName: a247e18de
+
+engine:
+  flink:
+    flink_jar_runner_uri: https://github.com/DataSQRL/flink-jar-runner/releases/download/0.0.1/flink-jar-runner-0.0.1.jar
+    logging:
+      format: txt
+    image:
+      name: datasqrl/flink-jar-runner
+      tag: 0.0.1-sqrl0.5.8
+    main_container:
+      env_vars:
+        - name: PROPERTIES_BOOTSTRAP_SERVERS
+          value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
+        - name: BOOTSTRAP_SERVERS
+          value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
+        - name: JDBC_URL
+          value: "jdbc:postgresql://database-a247e18de-rw:5432/datasqrl"
+        - name: JDBC_USERNAME
+          value: "datasqrl"
+        - name: JDBC_PASSWORD
+          value: "postgres"
+  database:
+    image:
+      name: ghcr.io/cloudnative-pg/postgresql
+      tag: 16
+  server:
+    image:
+      name: datasqrl/sqrl-server
+      #tag: v0.5.8
+      tag: 6bee306
+    env_vars:
+      - name: PGHOST
+        value: "database-a247e18de-rw"
+      - name: PGPORT
+        value: "5432"
+      - name: PGDATABASE
+        value: "datasqrl"
+      - name: PGUSER
+        value: "postgres"
+      - name: PGPASSWORD
+        value: "postgres"
+      - name: PROPERTIES_BOOTSTRAP_SERVERS
+        value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
+  kafka:
+    endpoint: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092

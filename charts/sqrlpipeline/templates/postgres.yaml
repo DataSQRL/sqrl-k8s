@@ -57,7 +57,6 @@ spec:
       - local all all trust
       - host all all all trust
 
-   # TODO: fix bug any password can login
   bootstrap:
     initdb:
       database: datasqrl
@@ -70,16 +69,7 @@ spec:
           key: configmap.sql
 
   storage:
-    storageClass: ebs-sc-normal-{{ .Release.Namespace }}
     size: 20Gi
-    resizeInUseVolumes: True
-  
-  # Optional
-  # walStorage:
-  #   storageClass: ebs-sc
-  #   size: 2Gi
   
   monitoring:
-    # Any change to the PodMonitor created automatically will be overridden by the Operator at the next reconciliation cycle
-    # in case you need to customize it, you need to deploy it manually, so set to false
     enablePodMonitor: false

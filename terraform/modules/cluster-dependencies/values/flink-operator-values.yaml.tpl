@@ -10,7 +10,6 @@ defaultConfiguration:
     kubernetes.operator.metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
     kubernetes.operator.metrics.reporter.prom.port: 9999
     kubernetes.operator.metrics.reporter.prom.interval: 5 MINUTE
-
     kubernetes.operator.flink.client.timeout: 5 MINUTE
 
 webhook:
@@ -20,15 +19,7 @@ operatorServiceAccount:
   create: true
   annotations:
     "helm.sh/resource-policy": delete
-    "eks.amazonaws.com/role-arn": "${flink_operator_sa_role_arn}"
   name: "flink-operator"
-
-# jobServiceAccount:
-#   create: true
-#   annotations:
-#     "helm.sh/resource-policy": delete
-#     "eks.amazonaws.com/role-arn": arn:aws:iam::286928876767:role/eksctl-datasqrl-cloud-nodegroup-my-NodeInstanceRole-dNZzJBfWsGTC
-#   name: "flink"
 
 rbac:
   create: true

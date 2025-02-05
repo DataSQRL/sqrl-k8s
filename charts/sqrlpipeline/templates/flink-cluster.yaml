@@ -33,7 +33,6 @@ metadata:
   name: session-cluster-{{ include "sqrlpipeline.name_suffix" . }}
   labels:
     service: flink
-    # monitoring_group: flink   # TODO: remove this ?
 {{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
 spec:
   image: {{ .Values.engine.flink.image.name }}:{{ .Values.engine.flink.image.tag }}
@@ -42,10 +41,11 @@ spec:
     {{- range $key, $value := .Values.engine.flink.flinkConfiguration }}
     {{ $key }}: {{ $value | quote }}
     {{- end }}
+    {{- if .Values.engine.flink.enable_high_availability -}}
     state.checkpoints.dir: {{ .Values.engine.flink.storage.checkpoint_dir_root }}/checkpoints/{{ include "sqrlpipeline.deployment_id" . }}
     state.savepoints.dir: {{ .Values.engine.flink.storage.savepoint_dir_root }}/savepoints/{{ include "sqrlpipeline.deployment_id" . }}
-    # ha
     high-availability.storageDir: {{ .Values.engine.flink.storage.savepoint_dir_root }}/ha/{{ include "sqrlpipeline.deployment_id" . }}
+    {{ end }}
 
   logConfiguration:
     log4j-console.properties: |+
@@ -106,7 +106,6 @@ spec:
           - name: flink-files
             configMap:
               name: flink-files-configmap-{{ include "sqrlpipeline.name_suffix" . }}
-  
   mode: standalone
 
 ---
