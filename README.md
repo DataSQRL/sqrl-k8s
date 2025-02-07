@@ -52,7 +52,8 @@ If using minikube, be aware that you must mount a local volume to access UDFs.
 #### Start Minikube
 
 ```bash
-minikube start
+# the minikube upon which tests are run
+minikube start --cpus=4 --memory=8g
 ```
 
 ## Installing Required Cluster Dependencies

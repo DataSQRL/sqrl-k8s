@@ -19,9 +19,11 @@ engine:
         - name: JDBC_URL
           value: "jdbc:postgresql://database-a247e18de-rw:5432/datasqrl"
         - name: JDBC_USERNAME
-          value: "datasqrl"
+          value: "postgres"
         - name: JDBC_PASSWORD
           value: "postgres"
+        - name: S3_DATA_BUCKET
+          value: example-data.dev.datasqrl.com
   database:
     image:
       name: ghcr.io/cloudnative-pg/postgresql
@@ -29,7 +31,6 @@ engine:
   server:
     image:
       name: datasqrl/sqrl-server
-      #tag: v0.5.8
       tag: 6bee306
     env_vars:
       - name: PGHOST
