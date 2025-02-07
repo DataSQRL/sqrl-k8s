@@ -23,6 +23,12 @@ jobs:
           version: "v1.29.1"
         id: install
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::286928876767:role/github-workflow-oidc-role-dev
+          aws-region: us-east-1
+
       - name: Replace underscores with dashes in RELEASE_NAME
         run: echo "RELEASE_NAME=$(echo ${{ env.RELEASE_NAME }} | sed 's/_/-/g')" >> $GITHUB_ENV
 
