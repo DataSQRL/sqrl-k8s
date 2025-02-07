@@ -1,9 +1,9 @@
 apiVersion: v2
-name: namespace-dependencies
+name: datasqrl-namespace-dependencies
 description: A Helm chart for datasqrl pipeline chart dependencies
 
 type: application
-version: 0.1.0
+version: 0.3.0
 # Not used directly
 appVersion: "1.16.0"
 
