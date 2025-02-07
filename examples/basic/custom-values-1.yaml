@@ -13,9 +13,9 @@ engine:
     main_container:
       env_vars:
         - name: PROPERTIES_BOOTSTRAP_SERVERS
-          value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
+          value: my-kafka:9092
         - name: BOOTSTRAP_SERVERS
-          value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
+          value: my-kafka:9092
         - name: JDBC_URL
           value: "jdbc:postgresql://database-a247e18de-rw:5432/datasqrl"
         - name: JDBC_USERNAME
@@ -44,6 +44,4 @@ engine:
       - name: PGPASSWORD
         value: "postgres"
       - name: PROPERTIES_BOOTSTRAP_SERVERS
-        value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
-  kafka:
-    endpoint: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
+        value: my-kafka:9092
