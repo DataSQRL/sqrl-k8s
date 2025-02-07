@@ -1,75 +1,35 @@
-namespace: cc-test
-group_label: datasqrl-pipeline
-eks_role_arn: arn:aws:iam::286928876767:role/eksctl-datasqrl-cloud-nodegroup-my-NodeInstanceRole-dNZzJBfWsGTC
-hosted_zone_name: sqrl.site
-deployment:
-  name: myproject
-  projectId: 144e5ac2-417c-4a9f-a8f5-948f36473e81
-  environment: 700
-  commitHash: aaabbb12
-  installationId: 52754049
-  commitBranch: main
-  commitMessage: update1
-  commitUserId: user1
-  userId: user1
-  orgName: test
-  baseUrl: https://examples-d014990c0-datasqrl.sqrl.site
-  hostDomain: myproject-d014990c0-test.sqrl.site
-  deploymentId: 8ccc1bfb-5d15-4976-8dfe-c7da247e18de
-  deploymentName: a247e18de
-  type: github
-  source: https://github.com/DataSQRL/datasqrl-examples.git
-  location: healthcare-study-monitoring/study_api_test_package.json
-  _uuid: 8ccc1bfb-5d15-4976-8dfe-c7d014990c04
-  event_time: 2024-11-26T15:50:17.916Z
-
-
 engine:
   flink:
-    flink_jar_runner_uri: https://github.com/DataSQRL/flink-jar-runner/releases/download/0.0.1/flink-jar-runner-0.0.1.jar
+    version: "v1_19"
+    enable_high_availability: false
+    jobManager:
+      resource:
+        memory: "1g"
+        cpu: 0.5
+    taskManager:
+      resource:
+        memory: "1g"
+        cpu: 0.5
     logging:
-      format: txt
-    image:
-      name: datasqrl/flink-jar-runner
-      tag: 0.0.1-sqrl0.5.8
-    main_container:
-      env_vars:
-        - name: PROPERTIES_BOOTSTRAP_SERVERS
-          value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
-        - name: BOOTSTRAP_SERVERS
-          value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
-        - name: JDBC_URL
-          value: "jdbc:postgresql://database-a247e18de-rw:5432/datasqrl"
-        - name: JDBC_USERNAME
-          value: "postgres"
-        - name: JDBC_PASSWORD
-          value: "postgres"
-        - name: S3_DATA_BUCKET
-          value: sqrl-examples-data-bucket
+      format: json
+      level: info
+    flinkConfiguration:
+      taskmanager.numberOfTaskSlots: "1"
+      jobmanager.memory.process.size: "512m"
+      taskmanager.memory.process.size: "512m"
+      metrics.reporters: prom
+      metrics.reporter.prom.factory.class: org.apache.flink.metrics.prometheus.PrometheusReporterFactory
+      metrics.reporter.prom.port: "9249"
+      metrics.reporter.prom.interval: 1 MINUTE
+      # access public s3 bucket
+      fs.s3a.aws.credentials.provider: org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider
   database:
-    image:
-      name: ghcr.io/cloudnative-pg/postgresql
-      tag: 16
+    logging:
+      level: info
   server:
-    image:
-      name: datasqrl/sqrl-server
-      # tag: v0.5.8
-      tag: 6bee306
-    env_vars:
-      - name: PGHOST
-        value: "database-a247e18de-rw"
-      - name: PGPORT
-        value: "5432"
-      - name: PGDATABASE
-        value: "datasqrl"
-      - name: PGUSER
-        value: "postgres"
-      - name: PGPASSWORD
-        value: "postgres"
-      - name: PROPERTIES_BOOTSTRAP_SERVERS
-        value: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
-  kafka:
-    endpoint: b-1.cloudmvpcluster.ie4ci8.c1.kafka.us-east-1.amazonaws.com:9092
+    metrics:
+      port: 8888
+      path: "metrics"
 
 flink_sql: |-
   CREATE TEMPORARY FUNCTION IF NOT EXISTS `timestamptostring` AS 'com.datasqrl.time.TimestampToString' LANGUAGE JAVA;
@@ -468,7 +428,6 @@ server_config_json: |-
       "keepAlive": 30000
     }
   }
-
 
 server_model_json: |-
   {
