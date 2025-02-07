@@ -35,8 +35,6 @@ jobs:
         run: |
           echo "publish namespace-dependencies at ${{ env.RELEASE_NAME }}"
           helm package . --version 0.0.0-${{ env.RELEASE_NAME }}
-          mv namespace-dependencies-0.0.0-${{ env.RELEASE_NAME }}.tgz "datasqrl-namespace-dependencies-0.0.0-${{ env.RELEASE_NAME }}.tgz"
-          ls
           helm push "datasqrl-namespace-dependencies-0.0.0-${{ env.RELEASE_NAME }}.tgz" oci://public.ecr.aws/j5u7a3j2
 
       - name: Package and publish sqrlpipeline
@@ -44,5 +42,4 @@ jobs:
         run: |
           echo "publish sqrlpipeline at ${{ env.RELEASE_NAME }}"
           helm package . --version 0.0.0-${{ env.RELEASE_NAME }}
-          mv sqrlpipeline-0.0.0-${{ env.RELEASE_NAME }}.tgz datasqrl-sqrlpipeline-0.0.0-${{ env.RELEASE_NAME }}.tgz
           helm push datasqrl-sqrlpipeline-0.0.0-${{ env.RELEASE_NAME }}.tgz oci://public.ecr.aws/j5u7a3j2
