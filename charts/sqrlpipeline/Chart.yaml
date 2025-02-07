@@ -2,10 +2,9 @@ apiVersion: v2
 name: sqrlpipeline
 description: A Helm chart for datasqrl pipeline stack
 
-
 type: application
-version: 0.1.12
-
+version: 0.1.0
+# Not used directly
 appVersion: "1.16.0"
 
 maintainers:
