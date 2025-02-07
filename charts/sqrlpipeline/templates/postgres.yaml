@@ -1,0 +1,75 @@
+apiVersion: v1
+data:
+  username: ZGF0YXNxcmw=  # base64 encoded 'datasqrl'
+  password: cG9zdGdyZXM=  # base64 encoded 'postgres'
+kind: Secret
+metadata:
+  name: db-secret-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    service: postgres
+{{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
+type: kubernetes.io/basic-auth
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: post-init-sql-configmap-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    service: postgres
+{{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
+data:
+  configmap.sql: |-
+    {{ .Values.database_schema_sql | nindent 4 }}
+
+---
+
+# install pgvector plugin using postInitTemplateSQL
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: database-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    service: postgres
+{{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
+spec:
+  description: "Cluster for datasqrl pipeline"
+  imageName: {{ .Values.engine.database.image.name }}:{{ .Values.engine.database.image.tag }}
+  instances: 1
+  primaryUpdateStrategy: unsupervised
+  logLevel: {{ .Values.engine.database.logging.level }}
+
+  enableSuperuserAccess: true
+  superuserSecret:
+    name: db-secret-{{ include "sqrlpipeline.name_suffix" . }}
+
+  # TODO: solve -h localhost not working problem
+  # https://stackoverflow.com/questions/4328679/how-to-configure-postgresql-so-it-accepts-loginpassword-auth
+  postgresql:
+    parameters:
+      shared_buffers: 256MB
+      pg_stat_statements.max: '10000'
+      pg_stat_statements.track: all
+      auto_explain.log_min_duration: '10s'
+
+    pg_hba:
+      - local all all trust
+      - host all all all trust
+
+  bootstrap:
+    initdb:
+      database: datasqrl
+      owner: datasqrl
+      secret:
+        name: db-secret-{{ include "sqrlpipeline.name_suffix" . }}
+      postInitApplicationSQLRefs:
+        configMapRefs:
+        - name: post-init-sql-configmap-{{ include "sqrlpipeline.name_suffix" . }}
+          key: configmap.sql
+
+  storage:
+    size: 20Gi
+  
+  monitoring:
+    enablePodMonitor: false

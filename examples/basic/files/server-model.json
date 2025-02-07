@@ -1,0 +1,93 @@
+{
+  "coords" : [ {
+    "type" : "args",
+    "parentType" : "Query",
+    "fieldName" : "Transactions",
+    "matchs" : [ {
+      "arguments" : [ {
+        "type" : "variable",
+        "path" : "customerid"
+      }, {
+        "type" : "variable",
+        "path" : "fromTime"
+      }, {
+        "type" : "variable",
+        "path" : "toTime"
+      } ],
+      "query" : {
+        "type" : "JdbcQuery",
+        "sql" : "SELECT *\nFROM (SELECT \"transactionId\", \"cardNo\", \"time\", \"amount\", \"merchantName\", \"category\", \"customerid\"\n  FROM \"customertransaction_1\"\n  WHERE \"customerid\" = $1 AND $2 <= \"time\" AND $3 > \"time\"\n  ORDER BY \"time\" DESC\n  FETCH NEXT 10000 ROWS ONLY) AS \"t0\"\nORDER BY \"time\" DESC",
+        "parameters" : [ {
+          "type" : "arg",
+          "path" : "customerid"
+        }, {
+          "type" : "arg",
+          "path" : "fromTime"
+        }, {
+          "type" : "arg",
+          "path" : "toTime"
+        } ]
+      }
+    } ]
+  }, {
+    "type" : "args",
+    "parentType" : "Query",
+    "fieldName" : "SpendingByDay",
+    "matchs" : [ {
+      "arguments" : [ {
+        "type" : "variable",
+        "path" : "customerid"
+      }, {
+        "type" : "variable",
+        "path" : "fromTime"
+      }, {
+        "type" : "variable",
+        "path" : "toTime"
+      } ],
+      "query" : {
+        "type" : "JdbcQuery",
+        "sql" : "SELECT \"timeDay\", \"spending\"\nFROM \"_spendingbyday_1\"\nWHERE \"customerid\" = $1 AND $2 <= \"timeDay\" AND $3 > \"timeDay\"\nORDER BY \"timeDay\" DESC",
+        "parameters" : [ {
+          "type" : "arg",
+          "path" : "customerid"
+        }, {
+          "type" : "arg",
+          "path" : "fromTime"
+        }, {
+          "type" : "arg",
+          "path" : "toTime"
+        } ]
+      }
+    } ]
+  }, {
+    "type" : "args",
+    "parentType" : "Query",
+    "fieldName" : "SpendingByCategory",
+    "matchs" : [ {
+      "arguments" : [ {
+        "type" : "variable",
+        "path" : "customerid"
+      }, {
+        "type" : "variable",
+        "path" : "limit"
+      }, {
+        "type" : "variable",
+        "path" : "offset"
+      } ],
+      "query" : {
+        "type" : "PagedJdbcQuery",
+        "sql" : "SELECT *\nFROM \"spendingbycategory_1\"\nWHERE \"customerid\" = $1\nORDER BY \"timeWeek\" DESC, \"category\"",
+        "parameters" : [ {
+          "type" : "arg",
+          "path" : "customerid"
+        } ]
+      }
+    } ]
+  } ],
+  "mutations" : [ ],
+  "subscriptions" : [ ],
+  "schema" : {
+    "type" : "string",
+    "schema" : "scalar DateTime\n\ntype Query {\n    Transactions(customerid: Int!, fromTime: DateTime!, toTime: DateTime!): [CustomerTransaction!]\n    SpendingByDay(customerid: Int!, fromTime: DateTime!, toTime: DateTime!): [CustomerSpendingByDay!]\n    SpendingByCategory(customerid: Int!, limit: Int = 10, offset: Int = 0): [CustomerSpendingByCategory!]\n}\n\ntype CustomerTransaction {\n    transactionId: Int!\n    cardNo: String!\n    time: String!\n    amount: Float!\n    merchantName: String!\n    category: String!\n}\n\ntype CustomerSpendingByCategory {\n    timeWeek: String!\n    category: String!\n    spending: Float!\n}\n\ntype CustomerSpendingByDay {\n    timeDay: String!\n    spending: Float!\n}\n\ninput ChatMessageInput {\n    role: String!\n    content: String!\n    name: String\n    context: ChatMessageContextInput\n}\n\ninput ChatMessageContextInput {\n    customerid: Int\n}\n\ntype CreatedChatMessage {\n    event_time: String!\n}\n\ninput TransactionInput {\n    transactionId: Int!\n    cardNo: String!\n    amount: Float!\n    merchantId: Int!\n}\n\ntype CreatedTransaction {\n    transactionId: Int!\n    event_time: String!\n}\n"
+  }
+}

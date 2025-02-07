@@ -1,0 +1,126 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-files-configmap-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    service: flink
+{{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
+data:
+  flink.sql: |-
+    {{ .Values.flink_sql | nindent 4 }}
+  config.yaml: |-
+    "table.exec.source.idle-timeout": "100 ms"
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-main-container-envs-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    service: flink
+{{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
+data:
+  {{- range .Values.engine.flink.main_container.env_vars }}
+  {{ .name }}: {{ .value | quote }}
+  {{- end }}
+
+---
+
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkDeployment
+metadata:
+  name: session-cluster-{{ include "sqrlpipeline.name_suffix" . }}
+  labels:
+    service: flink
+{{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
+spec:
+  image: {{ .Values.engine.flink.image.name }}:{{ .Values.engine.flink.image.tag }}
+  flinkVersion: {{ .Values.engine.flink.version }}
+  flinkConfiguration:
+    {{- range $key, $value := .Values.engine.flink.flinkConfiguration }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+    {{- if .Values.engine.flink.enable_high_availability -}}
+    state.checkpoints.dir: {{ .Values.engine.flink.storage.checkpoint_dir_root }}/checkpoints/{{ include "sqrlpipeline.deployment_id" . }}
+    state.savepoints.dir: {{ .Values.engine.flink.storage.savepoint_dir_root }}/savepoints/{{ include "sqrlpipeline.deployment_id" . }}
+    high-availability.storageDir: {{ .Values.engine.flink.storage.savepoint_dir_root }}/ha/{{ include "sqrlpipeline.deployment_id" . }}
+    {{ end }}
+
+  logConfiguration:
+    log4j-console.properties: |+
+      {{- if eq .Values.engine.flink.logging.level "info" }}
+      rootLogger.level = INFO
+      {{- else if eq .Values.engine.flink.logging.level "debug" }}
+      rootLogger.level = DEBUG
+      {{- else }}
+      rootLogger.level = INFO
+      {{- end }}
+      {{- if eq .Values.engine.flink.logging.format "json" }}
+      appender.console.layout.type = JsonLayout
+      appender.console.layout.compact = true
+      appender.console.layout.eventEol = true
+      appender.console.layout.jsonObjectMapper = com.fasterxml.jackson.databind.ObjectMapper
+      {{- end }}
+      rootLogger.appenderRefs = console
+      rootLogger.appenderRef.console.ref = ConsoleAppender
+      
+      appender.console.layout.type = PatternLayout
+      appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n
+      appender.console.type = Console
+      appender.console.name = ConsoleAppender
+
+  serviceAccount: flink
+  jobManager:
+    resource:
+      memory: {{ .Values.engine.flink.jobManager.resource.memory }}
+      cpu: {{ .Values.engine.flink.jobManager.resource.cpu }}
+  taskManager:
+    resource:
+      memory: {{ .Values.engine.flink.taskManager.resource.memory }}
+      cpu: {{ .Values.engine.flink.taskManager.resource.cpu }}
+  podTemplate:
+    metadata:
+      labels:
+        service: "flink"
+{{ include "sqrlpipeline.base_common_labels" . | indent 8 }}
+    spec:
+      containers:
+        - name: flink-main-container
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9249
+              name: prom
+          envFrom:
+            - configMapRef:
+                name: flink-main-container-envs-{{ include "sqrlpipeline.name_suffix" . }}
+          volumeMounts:
+            - name: flink-files
+              mountPath: /opt/flink/usrlib/flink-files
+
+      initContainers:
+        - name: wait-for-database
+          image: alpine:latest
+          command: ["sh", "-c", "apk update && apk add --no-cache busybox-extras && until timeout 2 telnet database-{{ include "sqrlpipeline.name_suffix" . }}-rw 5432 >/dev/null ; do echo waiting for database service; sleep 5; done "]
+      volumes:
+          - name: flink-files
+            configMap:
+              name: flink-files-configmap-{{ include "sqrlpipeline.name_suffix" . }}
+  mode: standalone
+
+---
+
+apiVersion: flink.apache.org/v1beta1
+kind: FlinkSessionJob
+metadata:
+  name: {{ include "sqrlpipeline.flinksessionjob_name" . }}
+  labels:
+    service: flink
+{{ include "sqrlpipeline.base_common_labels" . | indent 4 }}
+spec:
+  deploymentName: session-cluster-{{ include "sqrlpipeline.name_suffix" . }}
+  job:
+    jarURI: {{ .Values.engine.flink.flink_jar_runner_uri }}
+    args: ["--sqlfile", "/opt/flink/usrlib/flink-files/flink.sql", "--config-dir", "/opt/flink/usrlib/flink-files"]
+    parallelism: 1
+    upgradeMode: stateless

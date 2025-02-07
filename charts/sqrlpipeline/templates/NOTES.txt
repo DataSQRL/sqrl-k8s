@@ -1,0 +1,5 @@
+# postgres
+
+ The operator will apply the cnpg.io/cluster label on all objects relevant to a particular cluster. For example:
+
+kubectl get pods -l cnpg.io/cluster=<CLUSTER>

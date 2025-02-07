@@ -1,0 +1,12 @@
+apiVersion: v2
+name: datasqrl-namespace-dependencies
+description: A Helm chart for datasqrl pipeline chart dependencies
+
+type: application
+version: 0.3.0
+# Not used directly
+appVersion: "1.16.0"
+
+maintainers:
+  - name: Tianchen
+    email: tianchen@datasqrl.com

@@ -1,0 +1,540 @@
+namespace: sqrl
+deployment:
+  deploymentName: a247e18de
+
+engine:
+  flink:
+    flink_jar_runner_uri: https://github.com/DataSQRL/flink-jar-runner/releases/download/0.0.1/flink-jar-runner-0.0.1.jar
+    logging:
+      format: txt
+    image:
+      name: datasqrl/flink-jar-runner
+      tag: 0.0.1-sqrl0.5.8
+    main_container:
+      env_vars:
+        - name: PROPERTIES_BOOTSTRAP_SERVERS
+          value: my-kafka:9092
+        - name: BOOTSTRAP_SERVERS
+          value: my-kafka:9092
+        - name: JDBC_URL
+          value: "jdbc:postgresql://database-a247e18de-rw:5432/datasqrl"
+        - name: JDBC_USERNAME
+          value: "postgres"
+        - name: JDBC_PASSWORD
+          value: "postgres"
+        - name: S3_DATA_BUCKET
+          value: example-data.dev.datasqrl.com
+  database:
+    image:
+      name: ghcr.io/cloudnative-pg/postgresql
+      tag: 16
+  server:
+    image:
+      name: datasqrl/sqrl-server
+      tag: 6bee306
+    env_vars:
+      - name: PGHOST
+        value: "database-a247e18de-rw"
+      - name: PGPORT
+        value: "5432"
+      - name: PGDATABASE
+        value: "datasqrl"
+      - name: PGUSER
+        value: "postgres"
+      - name: PGPASSWORD
+        value: "postgres"
+      - name: PROPERTIES_BOOTSTRAP_SERVERS
+        value: my-kafka:9092
+
+flink_sql: |-
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `timestamptostring` AS 'com.datasqrl.time.TimestampToString' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `endofmonth` AS 'com.datasqrl.time.EndOfMonth' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `timestamptoepochmilli` AS 'com.datasqrl.time.TimestampToEpochMilli' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `endofweek` AS 'com.datasqrl.time.EndOfWeek' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `parsetimestamp` AS 'com.datasqrl.time.ParseTimestamp' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `epochmillitotimestamp` AS 'com.datasqrl.time.EpochMilliToTimestamp' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `endofminute` AS 'com.datasqrl.time.EndOfMinute' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `timestamptoepoch` AS 'com.datasqrl.time.TimestampToEpoch' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `endofsecond` AS 'com.datasqrl.time.EndOfSecond' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `epochtotimestamp` AS 'com.datasqrl.time.EpochToTimestamp' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `atzone` AS 'com.datasqrl.time.AtZone' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `endofday` AS 'com.datasqrl.time.EndOfDay' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `endofhour` AS 'com.datasqrl.time.EndOfHour' LANGUAGE JAVA;
+
+  CREATE TEMPORARY FUNCTION IF NOT EXISTS `endofyear` AS 'com.datasqrl.time.EndOfYear' LANGUAGE JAVA;
+
+  CREATE TEMPORARY TABLE `transaction_1` (
+    `transactionId` BIGINT NOT NULL,
+    `cardNo` DOUBLE NOT NULL,
+    `time` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+    `amount` DOUBLE NOT NULL,
+    `merchantId` BIGINT NOT NULL,
+    PRIMARY KEY (`transactionId`, `time`) NOT ENFORCED,
+    WATERMARK FOR `time` AS `time` - INTERVAL '1.0' SECOND
+  ) WITH (
+    'format' = 'flexible-json',
+    'path' = 's3://${S3_DATA_BUCKET}/transaction.jsonl',
+    'source.monitor-interval' = '1 min',
+    'connector' = 'filesystem'
+  );
+
+  CREATE TEMPORARY TABLE `cardassignment_1` (
+    `customerId` BIGINT NOT NULL,
+    `cardNo` DOUBLE NOT NULL,
+    `timestamp` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+    `cardType` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
+    PRIMARY KEY (`customerId`, `cardNo`, `timestamp`) NOT ENFORCED,
+    WATERMARK FOR `timestamp` AS `timestamp` - INTERVAL '1.0' SECOND
+  ) WITH (
+    'format' = 'flexible-json',
+    'path' = 's3://${S3_DATA_BUCKET}/cardAssignment.jsonl',
+    'source.monitor-interval' = '1 min',
+    'connector' = 'filesystem'
+  );
+
+  CREATE TEMPORARY TABLE `merchant_1` (
+    `merchantId` BIGINT NOT NULL,
+    `name` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
+    `category` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
+    `updatedTime` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+    PRIMARY KEY (`merchantId`, `updatedTime`) NOT ENFORCED,
+    WATERMARK FOR `updatedTime` AS `updatedTime` - INTERVAL '1.0' SECOND
+  ) WITH (
+    'format' = 'flexible-json',
+    'path' = 's3://${S3_DATA_BUCKET}/merchant.jsonl',
+    'source.monitor-interval' = '1 min',
+    'connector' = 'filesystem'
+  );
+
+  CREATE TEMPORARY TABLE `_spendingbyday_1` (
+    `customerid` BIGINT NOT NULL,
+    `timeDay` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+    `spending` DOUBLE NOT NULL,
+    PRIMARY KEY (`customerid`, `timeDay`) NOT ENFORCED
+  ) WITH (
+    'password' = '${JDBC_PASSWORD}',
+    'connector' = 'jdbc-sqrl',
+    'driver' = 'org.postgresql.Driver',
+    'table-name' = '_spendingbyday_1',
+    'url' = '${JDBC_URL}',
+    'username' = '${JDBC_USERNAME}'
+  );
+
+  CREATE TEMPORARY TABLE `customertransaction_1` (
+    `transactionId` BIGINT NOT NULL,
+    `cardNo` DOUBLE NOT NULL,
+    `time` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+    `amount` DOUBLE NOT NULL,
+    `merchantName` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
+    `category` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
+    `customerid` BIGINT NOT NULL,
+    PRIMARY KEY (`transactionId`, `time`) NOT ENFORCED
+  ) WITH (
+    'password' = '${JDBC_PASSWORD}',
+    'connector' = 'jdbc-sqrl',
+    'driver' = 'org.postgresql.Driver',
+    'table-name' = 'customertransaction_1',
+    'url' = '${JDBC_URL}',
+    'username' = '${JDBC_USERNAME}'
+  );
+
+  CREATE TEMPORARY TABLE `spendingbycategory_1` (
+    `customerid` BIGINT NOT NULL,
+    `timeWeek` TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL,
+    `category` VARCHAR(2147483647) CHARACTER SET `UTF-16LE` NOT NULL,
+    `spending` DOUBLE NOT NULL,
+    PRIMARY KEY (`customerid`, `timeWeek`, `category`) NOT ENFORCED
+  ) WITH (
+    'password' = '${JDBC_PASSWORD}',
+    'connector' = 'jdbc-sqrl',
+    'driver' = 'org.postgresql.Driver',
+    'table-name' = 'spendingbycategory_1',
+    'url' = '${JDBC_URL}',
+    'username' = '${JDBC_USERNAME}'
+  );
+
+  CREATE VIEW `table$1`
+  AS
+  SELECT *
+  FROM (SELECT `merchantId`, `name`, `category`, `updatedTime`, ROW_NUMBER() OVER (PARTITION BY `merchantId` ORDER BY `updatedTime` DESC) AS `_rownum`
+    FROM `merchant_1`) AS `t`
+  WHERE `_rownum` = 1;
+
+  CREATE VIEW `table$2`
+  AS
+  SELECT *
+  FROM (SELECT `customerId`, `cardNo`, `timestamp`, `cardType`, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
+    FROM `cardassignment_1`) AS `t1`
+  WHERE `_rownum` = 1;
+
+  CREATE VIEW `table$3`
+  AS
+  SELECT `$cor0`.`customerId` AS `customerid`, ENDOFDAY(`$cor0`.`time`) AS `timeDay`, `$cor0`.`amount`, `$cor0`.`transactionId`, `$cor0`.`time`
+  FROM (SELECT *
+    FROM `transaction_1` AS `$cor1`
+    INNER JOIN `table$2` FOR SYSTEM_TIME AS OF `$cor1`.`time` AS `t2` ON `$cor1`.`cardNo` = `t2`.`cardNo`) AS `$cor0`
+  INNER JOIN `table$1` FOR SYSTEM_TIME AS OF `$cor0`.`time` AS `t0` ON `$cor0`.`merchantId` = `t0`.`merchantId`;
+
+  CREATE VIEW `table$4`
+  AS
+  SELECT `customerid`, `window_time` AS `timeDay`, SUM(`amount`) AS `spending`
+  FROM TABLE(TUMBLE(TABLE `table$3`, DESCRIPTOR(`time`), INTERVAL '86400' SECOND(8), INTERVAL '0' SECOND(1))) AS `t6`
+  GROUP BY `customerid`, `window_start`, `window_end`, `window_time`;
+
+  CREATE VIEW `table$5`
+  AS
+  SELECT *
+  FROM (SELECT `merchantId`, `name`, `category`, `updatedTime`, ROW_NUMBER() OVER (PARTITION BY `merchantId` ORDER BY `updatedTime` DESC) AS `_rownum`
+    FROM `merchant_1`) AS `t`
+  WHERE `_rownum` = 1;
+
+  CREATE VIEW `table$6`
+  AS
+  SELECT *
+  FROM (SELECT `customerId`, `cardNo`, `timestamp`, `cardType`, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
+    FROM `cardassignment_1`) AS `t1`
+  WHERE `_rownum` = 1;
+
+  CREATE VIEW `table$7`
+  AS
+  SELECT `$cor2`.`transactionId`, `$cor2`.`cardNo`, `$cor2`.`time`, `$cor2`.`amount`, `t0`.`name` AS `merchantName`, `t0`.`category`, `$cor2`.`customerId` AS `customerid`
+  FROM (SELECT *
+    FROM `transaction_1` AS `$cor3`
+    INNER JOIN `table$6` FOR SYSTEM_TIME AS OF `$cor3`.`time` AS `t2` ON `$cor3`.`cardNo` = `t2`.`cardNo`) AS `$cor2`
+  INNER JOIN `table$5` FOR SYSTEM_TIME AS OF `$cor2`.`time` AS `t0` ON `$cor2`.`merchantId` = `t0`.`merchantId`;
+
+  CREATE VIEW `table$8`
+  AS
+  SELECT *
+  FROM (SELECT `merchantId`, `name`, `category`, `updatedTime`, ROW_NUMBER() OVER (PARTITION BY `merchantId` ORDER BY `updatedTime` DESC) AS `_rownum`
+    FROM `merchant_1`) AS `t`
+  WHERE `_rownum` = 1;
+
+  CREATE VIEW `table$9`
+  AS
+  SELECT *
+  FROM (SELECT `customerId`, `cardNo`, `timestamp`, `cardType`, ROW_NUMBER() OVER (PARTITION BY `cardNo` ORDER BY `timestamp` DESC) AS `_rownum`
+    FROM `cardassignment_1`) AS `t1`
+  WHERE `_rownum` = 1;
+
+  CREATE VIEW `table$10`
+  AS
+  SELECT `$cor6`.`customerId` AS `customerid`, ENDOFWEEK(`$cor6`.`time`) AS `timeWeek`, `t0`.`category`, `$cor6`.`amount`, `$cor6`.`transactionId`, `$cor6`.`time`
+  FROM (SELECT *
+    FROM `transaction_1` AS `$cor7`
+    INNER JOIN `table$9` FOR SYSTEM_TIME AS OF `$cor7`.`time` AS `t2` ON `$cor7`.`cardNo` = `t2`.`cardNo`) AS `$cor6`
+  INNER JOIN `table$8` FOR SYSTEM_TIME AS OF `$cor6`.`time` AS `t0` ON `$cor6`.`merchantId` = `t0`.`merchantId`;
+
+  CREATE VIEW `table$11`
+  AS
+  SELECT `customerid`, `window_time` AS `timeWeek`, `category`, SUM(`amount`) AS `spending`
+  FROM TABLE(TUMBLE(TABLE `table$10`, DESCRIPTOR(`time`), INTERVAL '604800' SECOND(9), INTERVAL '0' SECOND(1))) AS `t6`
+  GROUP BY `customerid`, `category`, `window_start`, `window_end`, `window_time`;
+
+  EXECUTE STATEMENT SET BEGIN
+  INSERT INTO `_spendingbyday_1`
+  (SELECT *
+  FROM `table$4`)
+  ;
+  INSERT INTO `customertransaction_1`
+  (SELECT *
+    FROM `table$7`)
+  ;
+  INSERT INTO `spendingbycategory_1`
+    (SELECT *
+    FROM `table$11`)
+    ;
+    END;
+
+database_schema_sql: |-
+  CREATE TABLE IF NOT EXISTS _spendingbyday_1 ("customerid" BIGINT NOT NULL,"timeDay" TIMESTAMP WITH TIME ZONE NOT NULL,"spending" DOUBLE PRECISION NOT NULL , PRIMARY KEY ("customerid","timeDay"));
+  CREATE TABLE IF NOT EXISTS customertransaction_1 ("transactionId" BIGINT NOT NULL,"cardNo" DOUBLE PRECISION NOT NULL,"time" TIMESTAMP WITH TIME ZONE NOT NULL,"amount" DOUBLE PRECISION NOT NULL,"merchantName" TEXT NOT NULL,"category" TEXT NOT NULL,"customerid" BIGINT NOT NULL , PRIMARY KEY ("transactionId","time"));
+  CREATE TABLE IF NOT EXISTS spendingbycategory_1 ("customerid" BIGINT NOT NULL,"timeWeek" TIMESTAMP WITH TIME ZONE NOT NULL,"category" TEXT NOT NULL,"spending" DOUBLE PRECISION NOT NULL , PRIMARY KEY ("customerid","timeWeek","category"));
+  CREATE INDEX IF NOT EXISTS customertransaction_1_btree_c6c2 ON customertransaction_1 USING btree ("customerid","time");
+
+server_config_json: |-
+  {
+    "servletConfig": {
+      "graphiQLEndpoint": "/graphiql*",
+      "graphQLEndpoint": "/graphql",
+      "usePgPool": true,
+      "useApolloWs": false,
+      "graphQLWsEndpoint": "/graphql-ws"
+    },
+    "graphQLHandlerOptions": {
+      "requestBatchingEnabled": false,
+      "requestMultipartEnabled": false
+    },
+    "graphiQLHandlerOptions": {
+      "enabled": true
+    },
+    "httpServerOptions": {
+      "sendBufferSize": -1,
+      "receiveBufferSize": -1,
+      "trafficClass": -1,
+      "reuseAddress": true,
+      "logActivity": false,
+      "activityLogDataFormat": "HEX_DUMP",
+      "reusePort": false,
+      "tcpNoDelay": true,
+      "tcpKeepAlive": false,
+      "soLinger": -1,
+      "idleTimeout": 0,
+      "readIdleTimeout": 0,
+      "writeIdleTimeout": 0,
+      "idleTimeoutUnit": "SECONDS",
+      "ssl": false,
+      "sslHandshakeTimeout": 10,
+      "sslHandshakeTimeoutUnit": "SECONDS",
+      "enabledCipherSuites": [],
+      "crlPaths": [],
+      "crlValues": [],
+      "useAlpn": false,
+      "enabledSecureTransportProtocols": [
+        "TLSv1",
+        "TLSv1.1",
+        "TLSv1.2"
+      ],
+      "tcpFastOpen": false,
+      "tcpCork": false,
+      "tcpQuickAck": false,
+      "tcpUserTimeout": 0,
+      "port": 8888,
+      "host": "0.0.0.0",
+      "acceptBacklog": -1,
+      "clientAuth": "NONE",
+      "sni": false,
+      "useProxyProtocol": false,
+      "proxyProtocolTimeout": 10,
+      "proxyProtocolTimeoutUnit": "SECONDS",
+      "compressionSupported": false,
+      "compressionLevel": 6,
+      "maxWebSocketFrameSize": 65536,
+      "maxWebSocketMessageSize": 262144,
+      "webSocketSubProtocols": [
+        "graphql-transport-ws",
+        "graphql-ws"
+      ],
+      "handle100ContinueAutomatically": false,
+      "maxChunkSize": 8192,
+      "maxInitialLineLength": 4096,
+      "maxHeaderSize": 8192,
+      "maxFormAttributeSize": 8192,
+      "initialSettings": {
+        "headerTableSize": 4096,
+        "pushEnabled": true,
+        "maxConcurrentStreams": 100,
+        "initialWindowSize": 65535,
+        "maxFrameSize": 16384,
+        "maxHeaderListSize": 8192
+      },
+      "alpnVersions": [
+        "HTTP_2",
+        "HTTP_1_1"
+      ],
+      "http2ConnectionWindowSize": -1,
+      "decompressionSupported": false,
+      "acceptUnmaskedFrames": false,
+      "decoderInitialBufferSize": 128,
+      "perFrameWebSocketCompressionSupported": true,
+      "perMessageWebSocketCompressionSupported": true,
+      "webSocketCompressionLevel": 6,
+      "webSocketAllowServerNoContext": false,
+      "webSocketPreferredClientNoContext": false,
+      "webSocketClosingTimeout": 10,
+      "tracingPolicy": "ALWAYS"
+    },
+    "pgConnectOptions": {
+      "sendBufferSize": -1,
+      "receiveBufferSize": -1,
+      "trafficClass": -1,
+      "reuseAddress": true,
+      "logActivity": false,
+      "activityLogDataFormat": "HEX_DUMP",
+      "reusePort": false,
+      "tcpNoDelay": true,
+      "tcpKeepAlive": false,
+      "soLinger": -1,
+      "idleTimeout": 0,
+      "readIdleTimeout": 0,
+      "writeIdleTimeout": 0,
+      "idleTimeoutUnit": "SECONDS",
+      "ssl": false,
+      "sslHandshakeTimeout": 10,
+      "sslHandshakeTimeoutUnit": "SECONDS",
+      "enabledCipherSuites": [],
+      "crlPaths": [],
+      "crlValues": [],
+      "useAlpn": false,
+      "enabledSecureTransportProtocols": [
+        "TLSv1",
+        "TLSv1.1",
+        "TLSv1.2"
+      ],
+      "tcpFastOpen": false,
+      "tcpCork": false,
+      "tcpQuickAck": false,
+      "tcpUserTimeout": 0,
+      "connectTimeout": 60000,
+      "trustAll": false,
+      "metricsName": "",
+      "reconnectAttempts": 0,
+      "reconnectInterval": 1000,
+      "hostnameVerificationAlgorithm": "",
+      "host": "${PGHOST}",
+      "port": 5432,
+      "user": "${PGUSER}",
+      "password": "${PGPASSWORD}",
+      "database": "${PGDATABASE}",
+      "cachePreparedStatements": false,
+      "preparedStatementCacheMaxSize": 256,
+      "preparedStatementCacheSqlFilter": {},
+      "properties": {
+        "DateStyle": "ISO",
+        "client_encoding": "utf8",
+        "application_name": "vertx-pg-client",
+        "extra_float_digits": "2"
+      },
+      "pipeliningLimit": 256,
+      "sslMode": "DISABLE",
+      "socketAddress": {
+        "domainSocket": false,
+        "inetSocket": true
+      },
+      "usingDomainSocket": false
+    },
+    "poolOptions": {
+      "maxSize": 4,
+      "maxWaitQueueSize": -1,
+      "idleTimeout": 0,
+      "idleTimeoutUnit": "SECONDS",
+      "poolCleanerPeriod": 1000,
+      "connectionTimeout": 30,
+      "connectionTimeoutUnit": "SECONDS",
+      "shared": false,
+      "name": "__vertx.DEFAULT",
+      "eventLoopSize": 0
+    },
+    "corsHandlerOptions": {
+      "allowedOrigin": "*",
+      "allowCredentials": false,
+      "maxAgeSeconds": -1,
+      "allowPrivateNetwork": false,
+      "allowedMethods": [
+        "GET",
+        "POST"
+      ],
+      "allowedHeaders": [],
+      "exposedHeaders": []
+    },
+    "apolloWSOptions": {
+      "keepAlive": 30000
+    }
+  }
+
+server_model_json: |-
+  {
+    "coords" : [ {
+      "type" : "args",
+      "parentType" : "Query",
+      "fieldName" : "Transactions",
+      "matchs" : [ {
+        "arguments" : [ {
+          "type" : "variable",
+          "path" : "customerid"
+        }, {
+          "type" : "variable",
+          "path" : "fromTime"
+        }, {
+          "type" : "variable",
+          "path" : "toTime"
+        } ],
+        "query" : {
+          "type" : "JdbcQuery",
+          "sql" : "SELECT *\nFROM (SELECT \"transactionId\", \"cardNo\", \"time\", \"amount\", \"merchantName\", \"category\", \"customerid\"\n  FROM \"customertransaction_1\"\n  WHERE \"customerid\" = $1 AND $2 <= \"time\" AND $3 > \"time\"\n  ORDER BY \"time\" DESC\n  FETCH NEXT 10000 ROWS ONLY) AS \"t0\"\nORDER BY \"time\" DESC",
+          "parameters" : [ {
+            "type" : "arg",
+            "path" : "customerid"
+          }, {
+            "type" : "arg",
+            "path" : "fromTime"
+          }, {
+            "type" : "arg",
+            "path" : "toTime"
+          } ]
+        }
+      } ]
+    }, {
+      "type" : "args",
+      "parentType" : "Query",
+      "fieldName" : "SpendingByDay",
+      "matchs" : [ {
+        "arguments" : [ {
+          "type" : "variable",
+          "path" : "customerid"
+        }, {
+          "type" : "variable",
+          "path" : "fromTime"
+        }, {
+          "type" : "variable",
+          "path" : "toTime"
+        } ],
+        "query" : {
+          "type" : "JdbcQuery",
+          "sql" : "SELECT \"timeDay\", \"spending\"\nFROM \"_spendingbyday_1\"\nWHERE \"customerid\" = $1 AND $2 <= \"timeDay\" AND $3 > \"timeDay\"\nORDER BY \"timeDay\" DESC",
+          "parameters" : [ {
+            "type" : "arg",
+            "path" : "customerid"
+          }, {
+            "type" : "arg",
+            "path" : "fromTime"
+          }, {
+            "type" : "arg",
+            "path" : "toTime"
+          } ]
+        }
+      } ]
+    }, {
+      "type" : "args",
+      "parentType" : "Query",
+      "fieldName" : "SpendingByCategory",
+      "matchs" : [ {
+        "arguments" : [ {
+          "type" : "variable",
+          "path" : "customerid"
+        }, {
+          "type" : "variable",
+          "path" : "limit"
+        }, {
+          "type" : "variable",
+          "path" : "offset"
+        } ],
+        "query" : {
+          "type" : "PagedJdbcQuery",
+          "sql" : "SELECT *\nFROM \"spendingbycategory_1\"\nWHERE \"customerid\" = $1\nORDER BY \"timeWeek\" DESC, \"category\"",
+          "parameters" : [ {
+            "type" : "arg",
+            "path" : "customerid"
+          } ]
+        }
+      } ]
+    } ],
+    "mutations" : [ ],
+    "subscriptions" : [ ],
+    "schema" : {
+      "type" : "string",
+      "schema" : "scalar DateTime\n\ntype Query {\n    Transactions(customerid: Int!, fromTime: DateTime!, toTime: DateTime!): [CustomerTransaction!]\n    SpendingByDay(customerid: Int!, fromTime: DateTime!, toTime: DateTime!): [CustomerSpendingByDay!]\n    SpendingByCategory(customerid: Int!, limit: Int = 10, offset: Int = 0): [CustomerSpendingByCategory!]\n}\n\ntype CustomerTransaction {\n    transactionId: Int!\n    cardNo: String!\n    time: String!\n    amount: Float!\n    merchantName: String!\n    category: String!\n}\n\ntype CustomerSpendingByCategory {\n    timeWeek: String!\n    category: String!\n    spending: Float!\n}\n\ntype CustomerSpendingByDay {\n    timeDay: String!\n    spending: Float!\n}\n\ninput ChatMessageInput {\n    role: String!\n    content: String!\n    name: String\n    context: ChatMessageContextInput\n}\n\ninput ChatMessageContextInput {\n    customerid: Int\n}\n\ntype CreatedChatMessage {\n    event_time: String!\n}\n\ninput TransactionInput {\n    transactionId: Int!\n    cardNo: String!\n    amount: Float!\n    merchantId: Int!\n}\n\ntype CreatedTransaction {\n    transactionId: Int!\n    event_time: String!\n}\n"
+    }
+  }
