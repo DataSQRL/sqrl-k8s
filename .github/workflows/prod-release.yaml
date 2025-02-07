@@ -2,7 +2,6 @@ name: Release Workflow
 
 on:
   release:
-<<<<<<< HEAD
     types: [published]
 
 env:
@@ -10,16 +9,6 @@ env:
 
 jobs:
   prod-release:
-=======
-    types:
-      - published
-
-env:
-  RELEASE_TAG: ${{github.event.release.tag_name#v}}
-
-jobs:
-  dev-release:
->>>>>>> 78c85f8 (add prod-release pipeline)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -51,7 +40,7 @@ jobs:
           echo "publish namespace-dependencies at ${VERSION}"
           helm package . --version ${VERSION}
           helm push namespace-dependencies-${VERSION}.tgz oci://286928876767.dkr.ecr.us-east-1.amazonaws.com
-      
+
       - name: Package and publish sqrlpipeline
         working-directory: ./charts/sqrlpipeline
         run: |
