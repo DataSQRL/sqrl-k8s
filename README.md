@@ -1,6 +1,7 @@
-# SQRL Compiler Kubernetes Profile
+# SQRL Kubernetes Resources
 
-This project provides a profile for the SQRL compiler to generate Helm charts and `values.yaml` files for deploying your SQRL pipeline to a Kubernetes cluster. Follow the instructions below to set up your Kubernetes cluster, compile your project, and deploy using Helm.
+This repository includes helm charts to deploy datasqrl stack on kubernetes.
+
 
 ## Table of Contents
 
