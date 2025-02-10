@@ -87,10 +87,6 @@ spec:
     spec:
       containers:
         - name: flink-main-container
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 9249
-              name: prom
           envFrom:
             - configMapRef:
                 name: flink-main-container-envs-{{ include "sqrlpipeline.name_suffix" . }}

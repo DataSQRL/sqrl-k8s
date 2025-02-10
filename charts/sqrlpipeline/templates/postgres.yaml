@@ -44,8 +44,6 @@ spec:
   superuserSecret:
     name: db-secret-{{ include "sqrlpipeline.name_suffix" . }}
 
-  # TODO: solve -h localhost not working problem
-  # https://stackoverflow.com/questions/4328679/how-to-configure-postgresql-so-it-accepts-loginpassword-auth
   postgresql:
     parameters:
       shared_buffers: 256MB

@@ -90,7 +90,6 @@ spec:
               port: 8888
             initialDelaySeconds: 30
             periodSeconds: 10
-          imagePullPolicy: Always
           volumeMounts:
             - name: shared-volume
               mountPath: /tmp/opt/sqrl

@@ -8,15 +8,14 @@ This repository includes helm charts to deploy datasqrl stack on kubernetes.
 - [Prerequisites](#prerequisites)
 - [Setting Up a Local Kubernetes Cluster](#setting-up-a-local-kubernetes-cluster)
   - [Using Minikube](#using-minikube)
-  - [Using Docker Desktop](#using-docker-desktop)
-- [Installing Required Operators](#installing-required-operators)
+- [Installing Required Cluster Dependencies](#installing-required-cluster-dependencies)
+- [Deploying Sqrlpipeline with Helm post Compile](#deploying-sqrlpipeline-with-helm-post-compile)
+- [Introspecting the Running Flink Web UI](#introspecting-the-running-flink-web-ui)
 - [Compiling with SQRL Compiler](#compiling-with-sqrl-compiler)
 - [Configuring Flink Upstream Image](#configuring-flink-upstream-image)
   - [Supporting User-Defined Functions (UDFs)](#supporting-user-defined-functions-udfs)
   - [Using the Default Upstream Flink Image](#using-the-default-upstream-flink-image)
   - [Creating a Custom Upstream Docker Image](#creating-a-custom-upstream-docker-image)
-- [Deploying with Helm](#deploying-with-helm)
-- [Introspecting the Running Flink Web UI](#introspecting-the-running-flink-web-ui)
 - [Limitations](#limitations)
 - [Support](#support)
 - [License](#license)
@@ -34,7 +33,7 @@ Ensure you have the following installed:
 
 ## Setting Up a Local Kubernetes Cluster
 
-If you do not have access to a Kubernetes cluster, you can set up a local cluster using Minikube or Docker Desktop.
+If you do not have access to a Kubernetes cluster, you can set up a local cluster using Minikube.
 
 ### Using Minikube
 
@@ -53,7 +52,7 @@ If using minikube, be aware that you must mount a local volume to access UDFs.
 #### Start Minikube
 
 ```bash
-# the minikube upon which tests are run
+# the minikube setting upon which tests are run
 minikube start --cpus=4 --memory=8g
 ```
 
@@ -73,7 +72,7 @@ Install the required operators using the instructions below.
 
 [Flink Operator Documentation](https://nightlies.apache.org/flink/flink-kubernetes-operator-docs-main/)
 
-or you can install all the cluster-level dependencies with terraform (when you are using the default, ensure your minikube cluster configuration is stored under path "~/.kube/config" and the config context named minikube)
+Also you can install all the cluster-level dependencies with terraform (when you are using the default, ensure your minikube cluster configuration is stored under path "~/.kube/config" and the config context is named as minikube, for further customization you can reconfigure under terraform/)
 
 ```bash
 cd terraform
@@ -82,23 +81,52 @@ terraform plan
 terraform apply
 ```
 
-## Run Example
+## Deploying Sqrlpipeline with Helm post Compile
+
+Assume we compiled with sqrl-cli and resulted in `examples/basic` as deployment artifacts
 
 * Install namespace dependencies
 
 ```bash
+cd examples/basic
 helm install namespace-dependencies ../../charts/namespace-dependencies --namespace sqrl --create-namespace
 ```
 
-assume there is a kafka cluster available
+Assume there is a kafka cluster (dummy value my-kafka:9092 in values.yaml) and s3 bucket (dummy value S3_DATA_BUCKET in values.yaml) for local data available
 
 ```bash
+cd examples/basic
 helm install test-pipeline1 ../../charts/sqrlpipeline -f custom-values-1.yaml --set-file flink_sql=./files/flink.sql --set-file database_schema_sql=./files/database-schema.sql --set-file server_config_json=./files/server-config.json --set-file server_model_json=./files/server-model.json --namespace sqrl
 ```
 
-if memory related problem, increase the memory and cpu of minikube could help
+**Note** If memory related problem happens, increasing the memory and cpu of minikube / flink might help
 
-without ha mode activated. there could be deletion problem when "helm uninstall" (due to pod restarting and undeleted finalizer)
+**Note** Without ha mode activated. there could be deletion problem when "helm uninstall" (due to pod restarting and undeleted finalizer)
+
+## Introspecting the Running Flink Web UI
+
+Access the Flink Web UI to monitor your Flink cluster:
+
+1. **Port-Forward the Flink Service:**
+
+   ```bash
+   kubectl port-forward svc/flink-jobmanager 8081:8081 -n sqrl
+   ```
+
+2. **Access the Web UI:**
+
+   Open your browser and navigate to `http://localhost:8081`.
+
+## Accessing the GraphQL UI
+
+1. **Port-Forward the GraphQL Service:**
+    ```bash
+    . kubectl port-forward svc/vertx-server 8888:8888 -n sqrl
+    ```
+
+2. **Access the Web UI:**
+
+   Open your browser and navigate to `http://localhost:8888/graphiql/`.
 
 -------------------------------------
 
@@ -184,69 +212,11 @@ If you need to include bespoke connectors or UDFs directly in the image, you can
   - --UDF_PATH=/path/to/your/udfs
     ```
 
-## Deploying with Helm
-
-Deploy the generated Helm charts to your Kubernetes cluster:
-
-```bash
-helm install my-sqrl-project ./build/deploy -n sqrl
-```
-
-Replace `my-sqrl-project` with your desired release name. Ensure you're in the directory containing the `build/deploy` folder or provide the correct path.
-
-## Introspecting the Running Flink Web UI
-
-Access the Flink Web UI to monitor your Flink cluster:
-
-1. **Port-Forward the Flink Service:**
-
-   ```bash
-   kubectl port-forward svc/flink-jobmanager 8081:8081 -n sqrl
-   ```
-
-2. **Access the Web UI:**
-
-   Open your browser and navigate to `http://localhost:8081`.
-
-## Accessing the GraphQL UI
-
-1. **Port-Forward the GraphQL Service:**
-    ```bash
-    . kubectl port-forward svc/vertx-server 8888:8888 -n sqrl
-    ```
-
-2. **Access the Web UI:**
-
-   Open your browser and navigate to `http://localhost:8888/graphiql/`.
-
 ## Limitations
 
 - **Local UDFs:** Need to be uploaded to a repository or included in a custom Docker image.
 - **Connectors:** SQRL assumes all connectors are streams by default. If you need to support a connector with a different changelog stream, please [open an issue](https://github.com/your-repo/issues).
 
-## Structure
-The helm charts take the following structure. Fork this repository and make changes and use it as your own default profile.
-```
-sqrl-helm-charts/
-├── Chart.yaml
-├── values.yaml
-└── templates/
-    ├── kafka/
-    │   ├── deployment.yaml
-    │   └── service.yaml
-    ├── postgres/
-    │   ├── configmap.yaml
-    │   ├── deployment.yaml
-    │   └── service.yaml
-    ├── flink/
-    │   ├── configmap.yaml
-    │   ├── deployment.yaml
-    │   └── service.yaml
-    └── vertx/
-        ├── configmap.yaml
-        ├── deployment.yaml
-        └── service.yaml
-```
 
 ## Support
 
